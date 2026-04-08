@@ -11,7 +11,7 @@ from scrabble_engine.engine import (
 )
 from scrabble_engine.move_generator import Move, best_moves, generate_moves
 from scrabble_engine.scoring import score_word
-from scrabble_engine.tiles import Rack, Tile, TileBag, find_words
+from scrabble_engine.tiles import Rack, Tile, TileBag, WordResult, find_words, find_words_detailed
 
 __all__ = [
     "BOARD_SIZE",
@@ -29,7 +29,9 @@ __all__ = [
     "analyze_position",
     "best_moves",
     "best_possible_moves",
+    "WordResult",
     "find_words",
+    "find_words_detailed",
     "generate_moves",
     "load_dictionary",
     "score_word",

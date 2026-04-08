@@ -59,6 +59,11 @@ class Tile:
             return cls(letter="?", points=0, is_blank=True)
         return cls(letter=letter, points=LETTER_VALUES[letter])
 
+    @classmethod
+    def blank(cls, letter: str) -> Tile:
+        """Create a blank tile representing a specific letter (scores 0)."""
+        return cls(letter="?", points=0, is_blank=True, blank_letter=letter.upper())
+
 
 class TileBag:
     """The bag of tiles for a Scrabble game."""
@@ -152,11 +157,26 @@ class Rack:
         return len(self._tiles) == 0
 
 
+@dataclass
+class WordResult:
+    """A word found by the rack solver, with blank usage info."""
+
+    word: str
+    blank_positions: tuple[int, ...]  # indices in `word` where a blank was used
+
+    def __str__(self) -> str:
+        return self.word
+
+
 def find_words(rack: list[str], dawg: DAWG) -> list[str]:
     """Find all valid words that can be formed from the given rack letters.
 
     Traverses the DAWG, consuming letters from the rack at each step.
-    Handles duplicate letters correctly.
+    Handles duplicate letters correctly. Supports blank tiles ('?') which
+    can represent any letter.
+
+    Returns a sorted list of unique words (no blank position info).
+    Use find_words_detailed() for blank position tracking.
     """
     rack_upper = [ch.upper() for ch in rack]
     available = Counter(rack_upper)
@@ -170,6 +190,40 @@ def find_words(rack: list[str], dawg: DAWG) -> list[str]:
                 available[ch] -= 1
                 _search(child, prefix + ch)
                 available[ch] += 1
+            elif available["?"] > 0:
+                available["?"] -= 1
+                _search(child, prefix + ch)
+                available["?"] += 1
 
     _search(dawg.root, "")
     return sorted(found)
+
+
+def find_words_detailed(rack: list[str], dawg: DAWG) -> list[WordResult]:
+    """Find all valid words with blank position tracking.
+
+    Returns WordResult objects that indicate which positions in the word
+    used a blank tile. Multiple results for the same word are possible if
+    the blank can represent different positions.
+    """
+    rack_upper = [ch.upper() for ch in rack]
+    available = Counter(rack_upper)
+    found: dict[tuple[str, tuple[int, ...]], WordResult] = {}
+
+    def _search(node: DAWGNode, prefix: str, blanks: list[int]) -> None:
+        if node.is_terminal and len(prefix) > 0:
+            key = (prefix, tuple(blanks))
+            if key not in found:
+                found[key] = WordResult(word=prefix, blank_positions=tuple(blanks))
+        for ch, child in node.children.items():
+            if available[ch] > 0:
+                available[ch] -= 1
+                _search(child, prefix + ch, blanks)
+                available[ch] += 1
+            elif available["?"] > 0:
+                available["?"] -= 1
+                _search(child, prefix + ch, blanks + [len(prefix)])
+                available["?"] += 1
+
+    _search(dawg.root, "", [])
+    return sorted(found.values(), key=lambda r: r.word)

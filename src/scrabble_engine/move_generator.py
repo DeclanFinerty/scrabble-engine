@@ -166,14 +166,16 @@ class _MoveGenerator:
             partial, node, anchor_pos, line, direction, cross_checks, tiles_used
         )
         if limit > 0:
+            col_pos = anchor_pos - len(partial) - 1
+            r, c = self._coords(line, col_pos, direction)
             for ch in set(self.available):
+                if ch == "?":
+                    continue  # blanks handled below
                 if self.available[ch] > 0 and ch in node.children:
                     self.available[ch] -= 1
-                    col_pos = anchor_pos - len(partial) - 1
-                    r, c = self._coords(line, col_pos, direction)
                     tile = Tile.from_letter(ch)
                     self._left_part(
-                        partial + ch,  # note: built left-to-right but placed right-to-left
+                        partial + ch,
                         node.children[ch],
                         anchor_pos,
                         limit - 1,
@@ -183,6 +185,22 @@ class _MoveGenerator:
                         tiles_used + [(r, c, tile)],
                     )
                     self.available[ch] += 1
+            # Try blank as each available child letter
+            if self.available["?"] > 0:
+                self.available["?"] -= 1
+                for ch, child in node.children.items():
+                    tile = Tile.blank(ch)
+                    self._left_part(
+                        partial + ch,
+                        child,
+                        anchor_pos,
+                        limit - 1,
+                        line,
+                        direction,
+                        cross_checks,
+                        tiles_used + [(r, c, tile)],
+                    )
+                self.available["?"] += 1
 
     def _extend_right(
         self,
@@ -209,6 +227,8 @@ class _MoveGenerator:
             if node.is_terminal and len(partial) >= 2 and tiles_used:
                 self._record_move(partial, pos, line, direction, tiles_used)
             for ch in set(self.available):
+                if ch == "?":
+                    continue  # blanks handled below
                 if (
                     self.available[ch] > 0
                     and ch in node.children
@@ -226,6 +246,22 @@ class _MoveGenerator:
                         tiles_used + [(r, c, new_tile)],
                     )
                     self.available[ch] += 1
+            # Try blank as each child letter that passes cross-checks
+            if self.available["?"] > 0:
+                self.available["?"] -= 1
+                for ch, child in node.children.items():
+                    if ch in cross_checks[pos]:
+                        new_tile = Tile.blank(ch)
+                        self._extend_right(
+                            partial + ch,
+                            child,
+                            pos + 1,
+                            line,
+                            direction,
+                            cross_checks,
+                            tiles_used + [(r, c, new_tile)],
+                        )
+                self.available["?"] += 1
         else:
             # Occupied square — use the existing letter
             letter = tile.blank_letter if tile.is_blank else tile.letter
