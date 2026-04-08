@@ -1,18 +1,25 @@
 """Scrabble engine - dictionary lookup, move generation, and optimal play analysis."""
 
+from scrabble_engine.board import BOARD_SIZE, Board, BonusSquare, Direction
 from scrabble_engine.dawg import DAWG, DAWGNode
 from scrabble_engine.dictionary import Dictionary
+from scrabble_engine.scoring import score_word
 from scrabble_engine.tiles import Rack, Tile, TileBag, find_words
 
 __all__ = [
+    "BOARD_SIZE",
+    "Board",
+    "BonusSquare",
     "DAWG",
     "DAWGNode",
     "Dictionary",
+    "Direction",
     "Rack",
     "Tile",
     "TileBag",
     "find_words",
     "load_dictionary",
+    "score_word",
 ]
 
 
