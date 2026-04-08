@@ -111,6 +111,7 @@ class _MoveGenerator:
                         direction,
                         cross_checks,
                         [],
+                        anchor_filled=False,
                     )
             else:
                 # Generate left parts from scratch
@@ -163,7 +164,8 @@ class _MoveGenerator:
     ) -> None:
         """Generate left parts and try extending right from the anchor."""
         self._extend_right(
-            partial, node, anchor_pos, line, direction, cross_checks, tiles_used
+            partial, node, anchor_pos, line, direction, cross_checks, tiles_used,
+            anchor_filled=False,
         )
         if limit > 0:
             col_pos = anchor_pos - len(partial) - 1
@@ -211,11 +213,17 @@ class _MoveGenerator:
         direction: Direction,
         cross_checks: list[set[str]],
         tiles_used: list[tuple[int, int, Tile]],
+        anchor_filled: bool = True,
     ) -> None:
-        """Extend the partial word to the right from position pos."""
+        """Extend the partial word to the right from position pos.
+
+        anchor_filled: whether the extension has processed at least one
+        square at or beyond the anchor position. A word can only be
+        recorded once this is True — otherwise a left-part-only word
+        could be recorded that doesn't touch the anchor or any existing tile.
+        """
         if pos >= BOARD_SIZE:
-            # Off the board — check if we have a valid word
-            if node.is_terminal and len(partial) >= 2 and tiles_used:
+            if anchor_filled and node.is_terminal and len(partial) >= 2 and tiles_used:
                 self._record_move(partial, pos, line, direction, tiles_used)
             return
 
@@ -224,7 +232,7 @@ class _MoveGenerator:
 
         if tile is None:
             # Empty square
-            if node.is_terminal and len(partial) >= 2 and tiles_used:
+            if anchor_filled and node.is_terminal and len(partial) >= 2 and tiles_used:
                 self._record_move(partial, pos, line, direction, tiles_used)
             for ch in set(self.available):
                 if ch == "?":
@@ -244,6 +252,7 @@ class _MoveGenerator:
                         direction,
                         cross_checks,
                         tiles_used + [(r, c, new_tile)],
+                        anchor_filled=True,
                     )
                     self.available[ch] += 1
             # Try blank as each child letter that passes cross-checks
@@ -260,10 +269,11 @@ class _MoveGenerator:
                             direction,
                             cross_checks,
                             tiles_used + [(r, c, new_tile)],
+                            anchor_filled=True,
                         )
                 self.available["?"] += 1
         else:
-            # Occupied square — use the existing letter
+            # Occupied square — use the existing letter (always fills the anchor)
             letter = tile.blank_letter if tile.is_blank else tile.letter
             if letter in node.children:
                 self._extend_right(
@@ -274,6 +284,7 @@ class _MoveGenerator:
                     direction,
                     cross_checks,
                     tiles_used,
+                    anchor_filled=True,
                 )
 
     def _record_move(

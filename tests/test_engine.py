@@ -278,32 +278,27 @@ class TestAnalyzePosition:
 
         Board state (simulating a mid-game scrabble-vision scan):
           Row 5:  ......QUEST....
-          Row 6:  ..........A....
           Row 7:  .....CHATTER...
-          Row 8:  ..........E....
-          Row 9:  .....BOND......
+          Row 9:  ........BOND...
 
-        Cross-word constraints are active (the vertical T/A/T/E at col 10,
-        and the horizontal words create multiple anchor points).
+        Words are spaced so no accidental cross-column conflicts.
+        TATE at col 10 (T from QUEST, A+T+E from CHATTER) is valid — but
+        we avoid column 6 overlap by offsetting BOND.
         """
         rows = ["." * 15] * 15
         rows = list(rows)
         # QUEST at (5, 6): Q(5,6), U(5,7), E(5,8), S(5,9), T(5,10)
         rows[5] = "......QUEST...."
-        # A at (6, 10) — extends T downward
-        rows[6] = "..........A...."
         # CHATTER at (7, 5): C(7,5), H(7,6), A(7,7), T(7,8), T(7,9), E(7,10), R(7,11)
         rows[7] = ".....CHATTER..."
-        # E at (8, 10) — continues down from A
-        rows[8] = "..........E...."
-        # BOND at (9, 5): B(9,5), O(9,6), N(9,7), D(9,8)
-        rows[9] = ".....BOND......"
+        # BOND at (9, 8): B(9,8), O(9,9), N(9,10), D(9,11)
+        rows[9] = "........BOND..."
         grid = "\n".join(rows)
 
         board = Board.from_text(grid)
         assert board.get_tile(5, 6).letter == "Q"
         assert board.get_tile(7, 5).letter == "C"
-        assert board.get_tile(9, 5).letter == "B"
+        assert board.get_tile(9, 8).letter == "B"
 
         # Analyze with a rack that can form interesting plays
         moves = analyze_position(board, ["S", "I", "N", "G", "E", "R", "D"], dawg)
@@ -322,6 +317,46 @@ class TestAnalyzePosition:
         moves = analyze_position(board, ["A", "E", "I", "O", "U", "S", "T"], dawg)
         scores = [m.score for m in moves]
         assert scores == sorted(scores, reverse=True)
+
+    def test_analyze_no_disconnected(self, dawg):
+        """analyze_position must enforce connectivity — no moves far from tiles."""
+        grid = (
+            "...............\n"
+            "...............\n"
+            "...............\n"
+            "...............\n"
+            "...............\n"
+            "...............\n"
+            "...............\n"
+            "......HELLO....\n"
+            "...............\n"
+            "...............\n"
+            "...............\n"
+            "...............\n"
+            "...............\n"
+            "...............\n"
+            "..............."
+        )
+        board = Board.from_text(grid)
+        moves = analyze_position(board, ["H", "A", "Z", "E", "Q", "I", "S"], dawg)
+
+        for move in moves:
+            r, c = move.start
+            length = len(move.word)
+            if move.direction == Direction.ACROSS:
+                positions = [(r, c + i) for i in range(length)]
+            else:
+                positions = [(r + i, c) for i in range(length)]
+
+            near_existing = any(
+                board.get_tile(pr + dr, pc + dc) is not None
+                for pr, pc in positions
+                for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1), (0, 0)]
+                if 0 <= pr + dr < 15 and 0 <= pc + dc < 15
+            )
+            assert near_existing, (
+                f"analyze_position: {move.word} at {move.start} is disconnected"
+            )
 
 
 class TestBestPossibleMoves:
