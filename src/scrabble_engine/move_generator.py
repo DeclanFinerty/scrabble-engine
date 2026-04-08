@@ -262,6 +262,22 @@ class _MoveGenerator:
                 if start_c != 7 or not (start_r <= 7 < start_r + word_len):
                     return
 
+        # Rebuild tiles_used with correct positions.
+        # The tile objects are in word order from the DAWG traversal, but
+        # left-part positions are assigned inside-out during generation.
+        # Walk the word from start to end and assign tiles to empty squares.
+        dr = 1 if direction == Direction.DOWN else 0
+        dc = 1 if direction == Direction.ACROSS else 0
+        tile_objects = [tile for _, _, tile in tiles_used]
+        tiles_used = []
+        tile_idx = 0
+        for i in range(word_len):
+            r = start_r + i * dr
+            c = start_c + i * dc
+            if self.board.get_tile(r, c) is None:
+                tiles_used.append((r, c, tile_objects[tile_idx]))
+                tile_idx += 1
+
         # Place tiles on a temporary board to compute the score
         temp_board = self._make_temp_board(tiles_used)
 

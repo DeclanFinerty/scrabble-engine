@@ -52,10 +52,33 @@ class TestBasicScoring:
         """Place a tile on a TL square."""
         board = Board()
         # (1,5) is TL. Place "IT" at (1,5) DOWN: I(1,5)=TL, T(2,5)=NONE
-        # But this isn't connected to anything. For scoring test, just verify math.
-        # I=1 *3(TL)=3, T=1 => sum=4
+        # I=1*3(TL)=3, T=1 → sum=4, no word mult → 4
         score = _place_and_score(board, "IT", (1, 5), Direction.DOWN)
         assert score == 4
+
+    def test_triple_letter_on_high_value_tile(self):
+        """Z (10 pts) on a TL square is the biggest single-tile swing in Scrabble.
+
+        Bonus layout ref: (5,5)=TL, (5,6)=NONE
+        Tile values: Z=10, A=1
+        """
+        board = Board()
+        # Place "ZA" at (5,5) ACROSS: Z(5,5)=TL, A(5,6)=NONE
+        # Z=10*3(TL)=30, A=1 → sum=31, no word mult → 31
+        score = _place_and_score(board, "ZA", (5, 5), Direction.ACROSS)
+        assert score == 31
+
+    def test_triple_letter_on_j(self):
+        """J (8 pts) on a TL square.
+
+        Bonus layout ref: (1,9)=TL, (1,10)=NONE
+        Tile values: J=8, O=1
+        """
+        board = Board()
+        # Place "JO" at (1,9) ACROSS: J(1,9)=TL, O(1,10)=NONE
+        # J=8*3(TL)=24, O=1 → sum=25, no word mult → 25
+        score = _place_and_score(board, "JO", (1, 9), Direction.ACROSS)
+        assert score == 25
 
     def test_double_word(self):
         """Place on a DW square."""
@@ -125,45 +148,116 @@ class TestBonusOnlyForNewTiles:
 
 
 class TestCrossWordScoring:
-    def test_cross_word(self):
-        """Placing a tile that forms a cross-word should score both words."""
+    def test_cross_word_length_one_no_score(self):
+        """A cross-word of length 1 should not contribute to the score."""
         board = Board()
-        # Place "CAT" horizontally at (7, 6)
         tiles_cat = [Tile.from_letter(ch) for ch in "CAT"]
         board.place_word("CAT", (7, 6), Direction.ACROSS, tiles_cat)
 
-        # Place "AS" vertically at (7, 7) going DOWN — A is already at (7,7)
-        # So we place S at (8, 7)
+        # Place S at (8,7) to form "AS" down. S at (8,7) has no horizontal neighbors.
         tiles_s = [Tile.from_letter("S")]
         placed = board.place_word("AS", (7, 7), Direction.DOWN, tiles_s)
-        # placed = [(8,7)] only
-
-        # Main word (DOWN): "AS" — A=1, S=1 => sum=2, no new tile on bonus => 2
-        # Actually A at (7,7) is existing, so no center DW
-        # Cross-word (ACROSS at row 8): just "S" alone — length 1, no cross-word scored
+        # placed = [(8,7)]
+        # Main "AS" DOWN: A=1(not new), S=1(new, (8,7)=NONE) → sum=2, no word mult → 2
+        # Cross at (8,7) ACROSS: just "S" → length 1 → 0
+        # Total = 2
         score = score_word(board, "AS", (7, 7), Direction.DOWN, placed)
         assert score == 2
 
-    def test_cross_word_with_bonus(self):
-        """Cross-word scoring should apply bonuses from new tile positions."""
+    def test_cross_word_multi_letter(self):
+        """A newly placed tile adjacent to existing tiles should form and score
+        a multi-letter cross-word.
+
+        Board setup:
+          Row 7: ...C A T.........  (CAT at (7,6) ACROSS)
+          Row 8: ..D O G..........  (DOG at (8,5) ACROSS)
+        Then place "TAG" at (7,8) DOWN: T(7,8) existing, A(8,8) new, G(9,8) new.
+
+        Bonus layout ref:
+          (8,8)=DL, (9,8)=NONE
+        """
         board = Board()
-        # Place "CAT" at (7, 6) ACROSS: C(7,6), A(7,7)=CENTER/DW, T(7,8)
+        for word, start in [("CAT", (7, 6)), ("DOG", (8, 5))]:
+            tiles = [Tile.from_letter(ch) for ch in word]
+            board.place_word(word, start, Direction.ACROSS, tiles)
+
+        tiles_ag = [Tile.from_letter("A"), Tile.from_letter("G")]
+        placed = board.place_word("TAG", (7, 8), Direction.DOWN, tiles_ag)
+        # placed = [(8,8), (9,8)]
+        #
+        # Main word "TAG" DOWN from (7,8):
+        #   T(7,8)=NONE, not new → T=1
+        #   A(8,8)=DL,   new    → A=1*2=2
+        #   G(9,8)=NONE, new    → G=2
+        #   sum=5, no word mult → 5
+        #
+        # Cross-word at (8,8) ACROSS — read through (8,8):
+        #   D(8,5), O(8,6), G(8,7), A(8,8) = "DOGA" from (8,5)
+        #   D=2(not new), O=1(not new), G=2(not new), A=1(new, DL)→ A=1*2=2
+        #   sum=7, no word mult → 7
+        #
+        # Cross-word at (9,8) ACROSS — just "G" → length 1, no score
+        #
+        # Total = 5 + 7 = 12
+        score = score_word(board, "TAG", (7, 8), Direction.DOWN, placed)
+        assert score == 12
+
+    def test_multiple_cross_words(self):
+        """Placing 3 tiles parallel to an existing word should form 3 separate
+        cross-words. Total = main word + cross1 + cross2 + cross3.
+
+        Board setup: "CAT" at (7,6) ACROSS → C(7,6), A(7,7)=★, T(7,8)
+        Then place "ARE" at (8,6) ACROSS → A(8,6), R(8,7), E(8,8)
+
+        Bonus layout ref (row 8 = row 6 pattern):
+          (8,6)=DL, (8,7)=NONE, (8,8)=DL
+        """
+        board = Board()
+        tiles_cat = [Tile.from_letter(ch) for ch in "CAT"]
+        board.place_word("CAT", (7, 6), Direction.ACROSS, tiles_cat)
+
+        tiles_are = [Tile.from_letter(ch) for ch in "ARE"]
+        placed = board.place_word("ARE", (8, 6), Direction.ACROSS, tiles_are)
+        # placed = [(8,6), (8,7), (8,8)]
+        #
+        # Main word "ARE" ACROSS from (8,6):
+        #   A(8,6)=DL   → A=1*2=2
+        #   R(8,7)=NONE → R=1
+        #   E(8,8)=DL   → E=1*2=2
+        #   sum=5, no word mult → 5
+        #
+        # Cross-word at (8,6) DOWN: C(7,6)+A(8,6) = "CA" from (7,6)
+        #   C=3(not new), A=1(new, DL) → A=1*2=2 → sum=5, no word mult → 5
+        #
+        # Cross-word at (8,7) DOWN: A(7,7)+R(8,7) = "AR" from (7,7)
+        #   A=1(not new), R=1(new, NONE) → sum=2, no word mult → 2
+        #
+        # Cross-word at (8,8) DOWN: T(7,8)+E(8,8) = "TE" from (7,8)
+        #   T=1(not new), E=1(new, DL) → E=1*2=2 → sum=3, no word mult → 3
+        #
+        # Total = 5 + 5 + 2 + 3 = 15
+        score = score_word(board, "ARE", (8, 6), Direction.ACROSS, placed)
+        assert score == 15
+
+    def test_cross_word_with_bonus_on_new_tile(self):
+        """Cross-word scoring should apply bonuses from new tile positions.
+        Existing tiles never get bonus multiplied."""
+        board = Board()
         tiles_cat = [Tile.from_letter(ch) for ch in "CAT"]
         placed_cat = board.place_word("CAT", (7, 6), Direction.ACROSS, tiles_cat)
+        # C=3, A=1, T=1 → sum=5, CENTER DW on A → 5*2 = 10
         score_cat = score_word(board, "CAT", (7, 6), Direction.ACROSS, placed_cat)
-        # C=3, A=1, T=1 => sum=5, CENTER DW on A => 5*2 = 10
         assert score_cat == 10
 
-        # Now place "OAR" at (6, 7) DOWN: O(6,7), A(7,7) existing, R(8,7)
+        # Place "OAR" at (6,7) DOWN: O(6,7) new, A(7,7) existing, R(8,7) new
+        # Bonus ref: (6,7)=NONE, (8,7)=NONE
         tiles_oar = [Tile.from_letter("O"), Tile.from_letter("R")]
         placed = board.place_word("OAR", (6, 7), Direction.DOWN, tiles_oar)
         # placed = [(6,7), (8,7)]
-        # Main word "OAR" DOWN: O=1(no bonus at 6,7=DL? let's check)
-        # Row 6: . . DL . . . DL . DL . . . DL . .
-        # (6,7) = "." = NONE. (8,7) = "." row 8 same as row 6: (8,7) = NONE
-        # O=1, A=1(not new), R=1 => sum=3, no word mult => 3
-        # Cross-word at (6,7) ACROSS: just "O" — length 1, no score
-        # Cross-word at (8,7) ACROSS: just "R" — length 1, no score
+        # Main "OAR" DOWN: O=1(NONE), A=1(not new), R=1(NONE) → sum=3, no word mult → 3
+        # Cross at (6,7) ACROSS: just "O" → length 1 → 0
+        # Cross at (8,7) ACROSS: just "R" → length 1 → 0
+        # Total = 3
         score = score_word(board, "OAR", (6, 7), Direction.DOWN, placed)
         assert score == 3
 
@@ -181,13 +275,19 @@ class TestBingoBonus:
         assert score == 16 + BINGO_BONUS
 
     def test_no_bingo_for_six(self):
-        """6 tiles should NOT get bingo bonus."""
+        """6 tiles should NOT get bingo bonus.
+
+        Note: STUDIE is not a valid Scrabble word, but scoring doesn't validate.
+        Bonus layout ref: (7,4)=NONE, (7,5)=NONE, (7,6)=NONE, (7,7)=★/DW, (7,8)=NONE, (7,9)=NONE
+        Tile values: S=1, T=1, U=1, D=2, I=1, E=1
+        """
         board = Board()
         tiles = [Tile.from_letter(ch) for ch in "STUDIE"]
         placed = board.place_word("STUDIE", (7, 4), Direction.ACROSS, tiles)
         score = score_word(board, "STUDIE", (7, 4), Direction.ACROSS, placed)
-        # No bingo — just word score
-        assert score < 50  # definitely no bingo added
+        # S=1, T=1, U=1, D=2, I=1, E=1 → sum=7, ★ DW on D → 7*2 = 14
+        # 6 tiles placed → no bingo
+        assert score == 14
 
 
 class TestBlankScoring:
