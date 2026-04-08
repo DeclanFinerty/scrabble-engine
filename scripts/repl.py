@@ -44,13 +44,17 @@ _BONUS_COLORS = {
 def _format_board(board: Board) -> str:
     """Render the board as a colorized string."""
     lines: list[str] = []
-    # Column header
-    header = "     " + "  ".join(f"{c:2d}" for c in range(BOARD_SIZE))
+    # Each cell is 3 visible chars wide. Row prefix is " RR |" = 5 chars + "|".
+    cell_w = 3
+    board_w = BOARD_SIZE * cell_w + 1  # +1 for trailing |
+
+    # Column header — center each number in a 3-char cell
+    header = "     |" + "".join(f"{c:^3d}" for c in range(BOARD_SIZE)) + "|"
     lines.append(header)
-    lines.append("    " + "-" * (BOARD_SIZE * 4 + 1))
+    lines.append("     +" + "-" * (BOARD_SIZE * cell_w) + "+")
 
     for r in range(BOARD_SIZE):
-        row_parts: list[str] = [f" {r:2d} |"]
+        row_parts: list[str] = [f" {r:2d}  |"]
         for c in range(BOARD_SIZE):
             tile = board.get_tile(r, c)
             if tile is not None:
@@ -65,19 +69,19 @@ def _format_board(board: Board) -> str:
                 if bonus == BonusSquare.CENTER:
                     row_parts.append(f" {color}*{_RESET} ")
                 elif bonus == BonusSquare.TRIPLE_WORD:
-                    row_parts.append(f" {color}TW{_RESET}")
+                    row_parts.append(f"{color}TW{_RESET} ")
                 elif bonus == BonusSquare.DOUBLE_WORD:
-                    row_parts.append(f" {color}DW{_RESET}")
+                    row_parts.append(f"{color}DW{_RESET} ")
                 elif bonus == BonusSquare.TRIPLE_LETTER:
-                    row_parts.append(f" {color}TL{_RESET}")
+                    row_parts.append(f"{color}TL{_RESET} ")
                 elif bonus == BonusSquare.DOUBLE_LETTER:
-                    row_parts.append(f" {color}DL{_RESET}")
+                    row_parts.append(f"{color}DL{_RESET} ")
                 else:
                     row_parts.append(f" {_DIM}.{_RESET} ")
-            row_parts.append("|" if c == BOARD_SIZE - 1 else "")
+        row_parts.append("|")
         lines.append("".join(row_parts))
 
-    lines.append("    " + "-" * (BOARD_SIZE * 4 + 1))
+    lines.append("     +" + "-" * (BOARD_SIZE * cell_w) + "+")
     return "\n".join(lines)
 
 
