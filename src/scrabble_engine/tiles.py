@@ -97,6 +97,11 @@ class TileBag:
             else:
                 raise ValueError(f"Tile '{letter}' not found in bag")
 
+    def return_tiles(self, tiles: list[Tile]) -> None:
+        """Return tiles to the bag (e.g., after an exchange)."""
+        self._tiles.extend(tiles)
+        random.shuffle(self._tiles)
+
     def tiles_in_bag(self) -> int:
         """Total number of tiles remaining."""
         return len(self._tiles)
