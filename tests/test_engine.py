@@ -1,5 +1,6 @@
 """Tests for game state management and position analysis."""
 
+import random
 import time
 
 import pytest
@@ -14,6 +15,11 @@ from scrabble_engine.engine import (
 )
 from scrabble_engine.move_generator import generate_moves
 from scrabble_engine.tiles import TILE_DISTRIBUTION, Tile
+
+
+@pytest.fixture(autouse=True)
+def seed_rng():
+    random.seed(42)
 
 
 @pytest.fixture(scope="module")
