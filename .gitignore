@@ -36,5 +36,3 @@ Thumbs.db
 # Docs (reference papers are local-only)
 docs/reference_papers/
 
-# Spec is development-only
-SPEC.md

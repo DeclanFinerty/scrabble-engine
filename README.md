@@ -1,6 +1,6 @@
 # scrabble-engine
 
-A Python Scrabble engine for dictionary lookup, move generation, and optimal play analysis. Part of a larger project to build a "Duolingo for Scrabble" learning platform.
+A Scrabble engine for dictionary lookup, move generation, and optimal play analysis. Part of a larger project to build a learning tool.
 
 ## What It Does
 
@@ -19,14 +19,12 @@ Built in phases, each extending the previous:
 3. **Board & Scoring** — 15x15 board with bonus squares, correct scoring rules
 4. **Move Generator** — Appel & Jacobson algorithm for exhaustive legal move search
 5. **Game Logic** — full state management, tile tracking, analysis mode
-6. **Blank Support** — wildcard tile handling in rack and on board
+6. **Blank Support** — blank tile handling in rack and on board
 7. **CLI & Integration** — interactive REPL, scrabble-vision bridge
 
-See [SPEC.md](SPEC.md) for the full development specification.
+## Loading Games
 
-## Integration
-
-Designed to accept board state from [scrabble-vision](../scrabble-vision) (board scanner) as a 15x15 text grid:
+Designed to accept board state as a 15x15 text grid:
 
 ```python
 from scrabble_engine import Engine
@@ -48,3 +46,7 @@ uv run pytest
 ## Word List
 
 Uses TWL06 (Tournament Word List, North American standard, ~178K words). Place `twl06.txt` in `src/scrabble_engine/data/`.
+
+## Integration
+
+Designed to be integrated with other learning tools
