@@ -10,8 +10,10 @@ from scrabble_engine.engine import (
     unplayed_tiles,
 )
 from scrabble_engine.move_generator import Move, best_moves, generate_moves
+from scrabble_engine.query import WordQuery, word_score
 from scrabble_engine.scoring import score_word
 from scrabble_engine.tiles import Rack, Tile, TileBag, WordResult, find_words, find_words_detailed
+from scrabble_engine.word_families import get_root, get_word_family
 
 __all__ = [
     "BOARD_SIZE",
@@ -29,11 +31,15 @@ __all__ = [
     "analyze_position",
     "best_moves",
     "best_possible_moves",
+    "WordQuery",
     "WordResult",
     "find_words",
     "find_words_detailed",
     "generate_moves",
+    "get_root",
+    "get_word_family",
     "load_dictionary",
+    "word_score",
     "score_word",
     "unplayed_tiles",
 ]
