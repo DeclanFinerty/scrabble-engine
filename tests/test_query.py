@@ -120,6 +120,44 @@ class TestIndividualFilters:
 
 
 # ---------------------------------------------------------------------------
+# Substring filter
+# ---------------------------------------------------------------------------
+
+class TestHasSubstring:
+    def test_basic(self, dawg):
+        results = WordQuery(dawg).has_substring("ING").execute()
+        assert all("ING" in w for w in results)
+        assert "KING" in results
+        assert len(results) > 0
+
+    def test_multiple_substrings_and_logic(self, dawg):
+        results = WordQuery(dawg).has_substring("UN").has_substring("ING").execute()
+        assert all("UN" in w and "ING" in w for w in results)
+        assert len(results) > 0
+
+    def test_no_match(self, dawg):
+        results = WordQuery(dawg).has_substring("XYZQ").execute()
+        assert results == []
+
+    def test_case_insensitive(self, dawg):
+        upper = WordQuery(dawg).has_substring("ING").execute()
+        lower = WordQuery(dawg).has_substring("ing").execute()
+        assert upper == lower
+
+    def test_chained_with_other_filters(self, dawg):
+        results = (
+            WordQuery(dawg)
+            .has_substring("ING")
+            .length(min=5, max=7)
+            .not_containing("Z")
+            .execute()
+        )
+        assert all("ING" in w for w in results)
+        assert all(5 <= len(w) <= 7 for w in results)
+        assert all("Z" not in w for w in results)
+
+
+# ---------------------------------------------------------------------------
 # Limit and count
 # ---------------------------------------------------------------------------
 

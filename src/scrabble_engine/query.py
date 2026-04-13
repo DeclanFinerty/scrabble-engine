@@ -39,6 +39,7 @@ class WordQuery:
         self._suffix: str | None = None
         self._containing: list[str] = []
         self._not_containing: set[str] = set()
+        self._substrings: list[str] = []
         self._min_len: int | None = None
         self._max_len: int | None = None
         self._letter_at: list[tuple[int, str]] = []
@@ -57,6 +58,11 @@ class WordQuery:
     def not_containing(self, letters: str) -> WordQuery:
         """Word must NOT contain any of these letters."""
         self._not_containing.update(letters.upper())
+        return self
+
+    def has_substring(self, substring: str) -> WordQuery:
+        """Word must contain this exact consecutive substring."""
+        self._substrings.append(substring.upper())
         return self
 
     def starting_with(self, prefix: str) -> WordQuery:
@@ -221,6 +227,12 @@ class WordQuery:
             results = [
                 w for w in results
                 if not any(ch in w for ch in self._not_containing)
+            ]
+
+        if self._substrings:
+            results = [
+                w for w in results
+                if all(sub in w for sub in self._substrings)
             ]
 
         if self._letter_at:
