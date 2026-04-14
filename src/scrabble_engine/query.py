@@ -115,8 +115,8 @@ class WordQuery:
         self._sort = _SortSpec(_SortKey.LENGTH, descending)
         return self
 
-    def sort_alphabetically(self) -> WordQuery:
-        self._sort = _SortSpec(_SortKey.ALPHABETICAL, False)
+    def sort_alphabetically(self, descending: bool = False) -> WordQuery:
+        self._sort = _SortSpec(_SortKey.ALPHABETICAL, descending)
         return self
 
     # --- Execution ---
@@ -265,7 +265,7 @@ class WordQuery:
             return sorted(candidates)
 
         if self._sort.key == _SortKey.ALPHABETICAL:
-            return sorted(candidates)
+            return sorted(candidates, reverse=self._sort.descending)
         elif self._sort.key == _SortKey.SCORE:
             return sorted(
                 candidates,

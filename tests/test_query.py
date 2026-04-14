@@ -183,6 +183,10 @@ class TestSortOrders:
         results = WordQuery(dawg).starting_with("ZA").sort_alphabetically().execute()
         assert results == sorted(results)
 
+    def test_sort_alphabetically_descending(self, dawg):
+        results = WordQuery(dawg).starting_with("ZA").sort_alphabetically(descending=True).execute()
+        assert results == sorted(results, reverse=True)
+
     def test_sort_by_length(self, dawg):
         results = WordQuery(dawg).containing("Z").sort_by_length().execute()
         lengths = [len(w) for w in results]
